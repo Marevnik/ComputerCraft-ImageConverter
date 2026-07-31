@@ -373,7 +373,7 @@ func writePaletteToHexFile(filename string, p color.Palette) error {
 	for _, c := range p {
 		// Get 16-bit color channels and scale down to 8-bit (0-255)
 		r, g, b, _ := c.RGBA()
-		hexStr := fmt.Sprintf("#%02X%02X%02X\n", uint8(r>>8), uint8(g>>8), uint8(b>>8))
+		hexStr := fmt.Sprintf("%02X%02X%02X\n", uint8(r>>8), uint8(g>>8), uint8(b>>8))
 
 		_, err := file.WriteString(hexStr)
 		if err != nil {
