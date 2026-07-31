@@ -10,19 +10,18 @@ import (
 	"log"
 	"math"
 	"os"
-	"time"
 )
 
 func main() {
 	image_filepath := "imgs/img.jpeg"
 	img := loadAsNRGBA(image_filepath)
+
 	var multiplyer float64 = 79 / float64(img.Bounds().Size().X)
 	resized := resize(getImageGrid(img), multiplyer)
 	saveGrid("imgs/resized.jpeg", resized)
-	start := time.Now()
-	CFM := createColorFrequencyMap(resized)
-	fmt.Println(CFM)
-	fmt.Println(time.Since(start))
+
+	_, _, _, colors := createColorFrequencyMap(resized)
+	fmt.Println(getColorChannelWithGreatestRange(colors))
 }
 
 func loadAsNRGBA(filePath string) *image.NRGBA {
@@ -110,19 +109,20 @@ func save(filePath string, img *image.NRGBA) {
 	jpeg.Encode(imgFile, img.SubImage(img.Rect), nil)
 }
 
-func createColorFrequencyMap(grid [][]color.Color) map[color.Color]int {
+func createColorFrequencyMap(grid [][]color.Color) (colorsMap map[color.Color]int, leadColorFrequency int, leadColor string, colors []color.Color) {
 	xlen, ylen := int(float64(len(grid))), int(float64(len(grid[0])))
-	colors := make(map[color.Color]int)
+	colorsMap = make(map[color.Color]int)
 	var reds, greens, blues uint32
 	for x := 0; x < xlen; x++ {
 		for y := 0; y < ylen; y++ {
 			pixel := grid[x][y]
 
-			elem, ok := colors[pixel]
+			elem, ok := colorsMap[pixel]
 			if ok == false {
-				colors[pixel] = 1
+				colorsMap[pixel] = 1
+				colors = append(colors, pixel)
 			} else {
-				colors[pixel] = elem + 1
+				colorsMap[pixel] = elem + 1
 			}
 
 			var r, g, b, _ uint32 = pixel.RGBA()
@@ -132,9 +132,69 @@ func createColorFrequencyMap(grid [][]color.Color) map[color.Color]int {
 		}
 	}
 
-	leadColor := max(reds, greens, blues)
+	if reds > greens {
+		if reds > blues {
+			leadColorFrequency = int(reds)
+			leadColor = "red"
+		} else {
+			leadColorFrequency = int(blues)
+			leadColor = "blue"
+		}
+	} else {
+		if greens > blues {
+			leadColorFrequency = int(greens)
+			leadColor = "green"
+		} else {
+			leadColorFrequency = int(blues)
+			leadColor = "blue"
+		}
+	}
 
-	fmt.Println(leadColor)
+	return colorsMap, leadColorFrequency, leadColor, colors
+}
 
-	return colors
+func getColorChannelWithGreatestRange(colors []color.Color) string {
+	var minR, minG, minB uint32 = 0xffff, 0xffff, 0xffff
+
+	var maxR, maxG, maxB uint32 = 0, 0, 0
+
+	for _, elem := range colors {
+		red, green, blue, _ := elem.RGBA()
+
+		if red < minR {
+			minR = red
+		}
+		if green < minG {
+			minG = green
+		}
+		if blue < minB {
+			minB = blue
+		}
+
+		if red > maxR {
+			maxR = red
+		}
+		if green > maxG {
+			maxG = green
+		}
+		if blue > maxB {
+			maxB = blue
+		}
+	}
+
+	rangeR := maxR - minR
+	rangeB := maxB - minB
+	rangeG := maxG - minG
+
+	if rangeR > rangeG {
+		if rangeR > rangeB {
+			return "red"
+		}
+		return "blue"
+	} else {
+		if rangeG > rangeB {
+			return "green"
+		}
+		return "blue"
+	}
 }
