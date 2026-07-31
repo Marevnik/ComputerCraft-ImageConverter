@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -20,37 +19,7 @@ type colorBucket struct {
 
 func main() {
 	image_filepath := "imgs/img.jpeg"
-	img := loadAsNRGBA(image_filepath)
-
-	var multiplyer float64 = 79 / float64(img.Bounds().Size().X)
-	resized := resize(getImageGrid(img), multiplyer)
-	saveGrid("imgs/resized.jpeg", resized)
-
-	resizedColors := gridColors(resized)
-
-	_, _, _, colors := createColorFrequencyMap(resized)
-	fmt.Println(Quantize(colors))
-
-	quantizedColors := Quantize(resizedColors)
-	CC_Custom_Palette := color.Palette{}
-	for _, clr := range quantizedColors {
-		CC_Custom_Palette = append(CC_Custom_Palette, clr)
-	}
-
-	quantizedImg := image.NewPaletted(image.Rect(0, 0, 79, 79), CC_Custom_Palette)
-	draw.Draw(quantizedImg, quantizedImg.Rect, gridToDefault(resized), gridToDefault(resized).Bounds().Min, draw.Src)
-
-	file, err := os.Create("imgs/quantized.png")
-
-	if err != nil {
-		log.Println("Failed to create quantized.png: ", err)
-	}
-	defer file.Close()
-
-	err = png.Encode(file, quantizedImg)
-	if err != nil {
-		log.Println("Failed to encode quantized.png: ", err)
-	}
+	processImage(image_filepath, 79)
 }
 
 func loadAsNRGBA(filePath string) *image.NRGBA {
@@ -415,4 +384,33 @@ func Quantize(colors []color.Color) []color.Color {
 	buckets := get16Buckets(colors)
 
 	return PaletteFromBuckets(buckets)
+}
+
+func processImage(filePath string, targetSquareScale int) {
+	src := loadAsNRGBA(filePath)
+	var multiplyer float64 = float64(targetSquareScale) / float64(src.Bounds().Size().X)
+
+	resized := resize(getImageGrid(src), multiplyer)
+	resizedImgColors := gridColors(resized)
+
+	quantized := Quantize(resizedImgColors)
+	CC_Custom_Palette := color.Palette{}
+	for _, clr := range quantized {
+		CC_Custom_Palette = append(CC_Custom_Palette, clr)
+	}
+
+	quantizedImg := image.NewPaletted(image.Rect(0, 0, 79, 79), CC_Custom_Palette)
+	draw.Draw(quantizedImg, quantizedImg.Rect, gridToDefault(resized), gridToDefault(resized).Bounds().Min, draw.Src)
+
+	file, err := os.Create("imgs/quantized.png")
+
+	if err != nil {
+		log.Println("Failed to create quantized.png: ", err)
+	}
+	defer file.Close()
+
+	err = png.Encode(file, quantizedImg)
+	if err != nil {
+		log.Println("Failed to encode quantized.png: ", err)
+	}
 }
