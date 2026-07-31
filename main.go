@@ -10,6 +10,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"sort"
 )
 
 func main() {
@@ -153,7 +154,7 @@ func createColorFrequencyMap(grid [][]color.Color) (colorsMap map[color.Color]in
 	return colorsMap, leadColorFrequency, leadColor, colors
 }
 
-func getColorChannelWithGreatestRange(colors []color.Color) string {
+func getColorChannelWithGreatestRange(colors []color.Color) (colorchannel string, sortedColors []color.Color) {
 	var minR, minG, minB uint32 = 0xffff, 0xffff, 0xffff
 
 	var maxR, maxG, maxB uint32 = 0, 0, 0
@@ -188,13 +189,33 @@ func getColorChannelWithGreatestRange(colors []color.Color) string {
 
 	if rangeR > rangeG {
 		if rangeR > rangeB {
-			return "red"
+			sort.Slice(colors, func(i, j int) bool {
+				r1, _, _, _ := colors[i].RGBA()
+				r2, _, _, _ := colors[j].RGBA()
+				return r1 > r2
+			})
+			return "red", colors
 		}
-		return "blue"
+		sort.Slice(colors, func(i, j int) bool {
+			_, _, b1, _ := colors[i].RGBA()
+			_, _, b2, _ := colors[j].RGBA()
+			return b1 > b2
+		})
+		return "blue", colors
 	} else {
 		if rangeG > rangeB {
-			return "green"
+			sort.Slice(colors, func(i, j int) bool {
+				_, g1, _, _ := colors[i].RGBA()
+				_, g2, _, _ := colors[j].RGBA()
+				return g1 > g2
+			})
+			return "green", colors
 		}
-		return "blue"
+		sort.Slice(colors, func(i, j int) bool {
+			_, _, b1, _ := colors[i].RGBA()
+			_, _, b2, _ := colors[j].RGBA()
+			return b1 > b2
+		})
+		return "blue", colors
 	}
 }
