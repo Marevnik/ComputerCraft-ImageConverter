@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -19,7 +20,7 @@ type colorBucket struct {
 
 func main() {
 	image_filepath := "imgs/img.jpeg"
-	processImage(image_filepath, 79)
+	processImage(image_filepath, 79, "peripetia")
 }
 
 func loadAsNRGBA(filePath string) *image.NRGBA {
@@ -132,10 +133,9 @@ func save(filePath string, img *image.NRGBA) {
 
 // creates map of colors, frequency of a lead color, lead color channel and a slice of unique colors
 // might wanna reduce return values
-func createColorFrequencyMap(grid [][]color.Color) (colorsMap map[color.Color]int, leadColorFrequency int, leadColor string, colors []color.Color) {
+func createColorFrequencyMap(grid [][]color.Color) (colorsMap map[color.Color]int) {
 	xlen, ylen := int(float64(len(grid))), int(float64(len(grid[0])))
 	colorsMap = make(map[color.Color]int)
-	var reds, greens, blues uint32
 	for x := 0; x < xlen; x++ {
 		for y := 0; y < ylen; y++ {
 			pixel := grid[x][y]
@@ -143,39 +143,16 @@ func createColorFrequencyMap(grid [][]color.Color) (colorsMap map[color.Color]in
 			elem, ok := colorsMap[pixel]
 			if ok == false {
 				colorsMap[pixel] = 1
-				colors = append(colors, pixel)
 			} else {
 				colorsMap[pixel] = elem + 1
 			}
-
-			var r, g, b, _ uint32 = pixel.RGBA()
-			reds += r
-			greens += g
-			blues += b
 		}
 	}
 
-	if reds > greens {
-		if reds > blues {
-			leadColorFrequency = int(reds)
-			leadColor = "red"
-		} else {
-			leadColorFrequency = int(blues)
-			leadColor = "blue"
-		}
-	} else {
-		if greens > blues {
-			leadColorFrequency = int(greens)
-			leadColor = "green"
-		} else {
-			leadColorFrequency = int(blues)
-			leadColor = "blue"
-		}
-	}
-
-	return colorsMap, leadColorFrequency, leadColor, colors
+	return colorsMap
 }
 
+// return "red", "green" or "blue" str representing the color channel with greatest range
 func getColorChannelWithGreatestRange(colors []color.Color) (colorchannel string) {
 	var minR, minG, minB uint32 = 0xffff, 0xffff, 0xffff
 
@@ -386,7 +363,49 @@ func Quantize(colors []color.Color) []color.Color {
 	return PaletteFromBuckets(buckets)
 }
 
-func processImage(filePath string, targetSquareScale int) {
+func writePaletteToHexFile(filename string, p color.Palette) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for _, c := range p {
+		// Get 16-bit color channels and scale down to 8-bit (0-255)
+		r, g, b, _ := c.RGBA()
+		hexStr := fmt.Sprintf("#%02X%02X%02X\n", uint8(r>>8), uint8(g>>8), uint8(b>>8))
+
+		_, err := file.WriteString(hexStr)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writePixelsToFile(filename string, img image.Image, colorPalette color.Palette) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for y := img.Bounds().Min.Y; y < img.Bounds().Size().Y; y++ {
+		var row string
+		for x := img.Bounds().Min.X; x < img.Bounds().Size().X; x++ {
+			pix := img.At(x, y)
+			row += fmt.Sprintf("%x", colorPalette.Index(pix))
+		}
+		row = row + "\n"
+		_, err := file.WriteString(row)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func processImage(filePath string, targetSquareScale int, outputFileName string) {
 	src := loadAsNRGBA(filePath)
 	var multiplyer float64 = float64(targetSquareScale) / float64(src.Bounds().Size().X)
 
@@ -402,7 +421,9 @@ func processImage(filePath string, targetSquareScale int) {
 	quantizedImg := image.NewPaletted(image.Rect(0, 0, 79, 79), CC_Custom_Palette)
 	draw.Draw(quantizedImg, quantizedImg.Rect, gridToDefault(resized), gridToDefault(resized).Bounds().Min, draw.Src)
 
-	file, err := os.Create("imgs/quantized.png")
+	// saving result as image
+	fileName := "imgs/Converted/" + outputFileName + ".png"
+	file, err := os.Create(fileName)
 
 	if err != nil {
 		log.Println("Failed to create quantized.png: ", err)
@@ -413,4 +434,8 @@ func processImage(filePath string, targetSquareScale int) {
 	if err != nil {
 		log.Println("Failed to encode quantized.png: ", err)
 	}
+
+	// saving result for CC
+	writePaletteToHexFile("imgs/Converted/palette.txt", CC_Custom_Palette)
+	writePixelsToFile("imgs/Converted/pixels.txt", quantizedImg, CC_Custom_Palette)
 }
