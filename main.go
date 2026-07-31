@@ -13,6 +13,11 @@ import (
 	"sort"
 )
 
+type colorBucket struct {
+	colors     []color.Color
+	colorRange int
+}
+
 func main() {
 	image_filepath := "imgs/img.jpeg"
 	img := loadAsNRGBA(image_filepath)
@@ -22,7 +27,7 @@ func main() {
 	saveGrid("imgs/resized.jpeg", resized)
 
 	_, _, _, colors := createColorFrequencyMap(resized)
-	fmt.Println(getColorChannelWithGreatestRange(colors))
+	fmt.Println(Quantize(colors))
 }
 
 func loadAsNRGBA(filePath string) *image.NRGBA {
@@ -110,6 +115,8 @@ func save(filePath string, img *image.NRGBA) {
 	jpeg.Encode(imgFile, img.SubImage(img.Rect), nil)
 }
 
+// creates map of colors, frequency of a lead color, lead color channel and a slice of unique colors
+// might wanna reduce return values
 func createColorFrequencyMap(grid [][]color.Color) (colorsMap map[color.Color]int, leadColorFrequency int, leadColor string, colors []color.Color) {
 	xlen, ylen := int(float64(len(grid))), int(float64(len(grid[0])))
 	colorsMap = make(map[color.Color]int)
@@ -154,7 +161,7 @@ func createColorFrequencyMap(grid [][]color.Color) (colorsMap map[color.Color]in
 	return colorsMap, leadColorFrequency, leadColor, colors
 }
 
-func getColorChannelWithGreatestRange(colors []color.Color) (colorchannel string, sortedColors []color.Color) {
+func getColorChannelWithGreatestRange(colors []color.Color) (colorchannel string) {
 	var minR, minG, minB uint32 = 0xffff, 0xffff, 0xffff
 
 	var maxR, maxG, maxB uint32 = 0, 0, 0
@@ -189,33 +196,177 @@ func getColorChannelWithGreatestRange(colors []color.Color) (colorchannel string
 
 	if rangeR > rangeG {
 		if rangeR > rangeB {
-			sort.Slice(colors, func(i, j int) bool {
-				r1, _, _, _ := colors[i].RGBA()
-				r2, _, _, _ := colors[j].RGBA()
-				return r1 > r2
-			})
-			return "red", colors
+			return "red"
 		}
-		sort.Slice(colors, func(i, j int) bool {
-			_, _, b1, _ := colors[i].RGBA()
-			_, _, b2, _ := colors[j].RGBA()
-			return b1 > b2
-		})
-		return "blue", colors
+		return "blue"
 	} else {
 		if rangeG > rangeB {
-			sort.Slice(colors, func(i, j int) bool {
-				_, g1, _, _ := colors[i].RGBA()
-				_, g2, _, _ := colors[j].RGBA()
-				return g1 > g2
-			})
-			return "green", colors
+			return "green"
 		}
+		return "blue"
+	}
+}
+
+// String arg must be "red", "blue" or "green". Otherwise will return 0
+func getColorRange(colors []color.Color, colorChannel string) (colorRange int) {
+	var minR, minG, minB uint32 = 0xffff, 0xffff, 0xffff
+
+	var maxR, maxG, maxB uint32 = 0, 0, 0
+
+	for _, elem := range colors {
+		red, green, blue, _ := elem.RGBA()
+
+		if red < minR {
+			minR = red
+		}
+		if green < minG {
+			minG = green
+		}
+		if blue < minB {
+			minB = blue
+		}
+
+		if red > maxR {
+			maxR = red
+		}
+		if green > maxG {
+			maxG = green
+		}
+		if blue > maxB {
+			maxB = blue
+		}
+	}
+
+	rangeR := maxR - minR
+	rangeB := maxB - minB
+	rangeG := maxG - minG
+
+	switch colorChannel {
+	case "red":
+		return int(rangeR)
+	case "blue":
+		return int(rangeB)
+	case "green":
+		return int(rangeG)
+	default:
+		return 0
+	}
+}
+
+// String arg must be "red", "blue" or "green".
+func sortByColor(colors []color.Color, colorChannel string) {
+	switch colorChannel {
+	case "red":
+		sort.Slice(colors, func(i, j int) bool {
+			r1, _, _, _ := colors[i].RGBA()
+			r2, _, _, _ := colors[j].RGBA()
+			return r1 > r2
+		})
+	case "green":
+		sort.Slice(colors, func(i, j int) bool {
+			_, g1, _, _ := colors[i].RGBA()
+			_, g2, _, _ := colors[j].RGBA()
+			return g1 > g2
+		})
+	case "blue":
 		sort.Slice(colors, func(i, j int) bool {
 			_, _, b1, _ := colors[i].RGBA()
 			_, _, b2, _ := colors[j].RGBA()
 			return b1 > b2
 		})
-		return "blue", colors
 	}
+}
+
+func get16Buckets(sortedColors []color.Color) []colorBucket {
+	colorBuckets := []colorBucket{
+		{colors: append([]color.Color(nil), sortedColors...),
+			colorRange: getColorRange(sortedColors, getColorChannelWithGreatestRange(sortedColors))},
+	}
+
+	for len(colorBuckets) < 16 {
+		index := findBucketToSplit(colorBuckets)
+		newBucket := colorBuckets[index]
+		colorChannel := getColorChannelWithGreatestRange(newBucket.colors)
+		sortByColor(newBucket.colors, colorChannel)
+
+		middle := len(newBucket.colors) / 2
+		leftColors := append([]color.Color(nil), newBucket.colors[middle:]...)
+		rightColors := append([]color.Color(nil), newBucket.colors[:middle]...)
+
+		leftBucket := makeBucket(leftColors)
+		rightBucket := makeBucket(rightColors)
+
+		colorBuckets = append(colorBuckets[:index], colorBuckets[index+1:]...)
+		colorBuckets = append(colorBuckets, leftBucket, rightBucket)
+	}
+
+	return colorBuckets
+}
+
+func findBucketToSplit(colorBuckets []colorBucket) int {
+	if len(colorBuckets) < 2 {
+		return 0
+	}
+
+	cur := -1
+	widestRange := -1
+
+	for i, bucket := range colorBuckets {
+		if bucket.colorRange > widestRange {
+			cur = i
+			widestRange = bucket.colorRange
+		}
+	}
+
+	return cur
+}
+
+func makeBucket(colors []color.Color) colorBucket {
+	colorToSortBy := getColorChannelWithGreatestRange(colors)
+	sortByColor(colors, colorToSortBy)
+	WidestColorColorRange := getColorRange(colors, colorToSortBy)
+
+	return colorBucket{
+		colors:     colors,
+		colorRange: WidestColorColorRange,
+	}
+}
+
+func averageColors(colors []color.Color) color.Color {
+	length := len(colors)
+
+	var reds, greens, blues uint64
+
+	for _, elem := range colors {
+		red, green, blue, _ := elem.RGBA()
+		reds += uint64(red)
+		blues += uint64(blue)
+		greens += uint64(green)
+	}
+
+	avgRed := reds / uint64(length)
+	avgGreen := greens / uint64(length)
+	avgBlue := blues / uint64(length)
+
+	return color.RGBA{
+		R: uint8(avgRed >> 8),
+		G: uint8(avgGreen >> 8),
+		B: uint8(avgBlue >> 8),
+		A: 255,
+	}
+}
+
+func PaletteFromBuckets(buckets []colorBucket) (NewPalette []color.Color) {
+	for _, elem := range buckets {
+		newColor := averageColors(elem.colors)
+		NewPalette = append(NewPalette, newColor)
+	}
+
+	return NewPalette
+}
+
+func Quantize(colors []color.Color) []color.Color {
+	buckets := get16Buckets(colors)
+
+	return PaletteFromBuckets(buckets)
 }
