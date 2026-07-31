@@ -6,7 +6,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
-	_ "image/png"
+	"image/png"
 	"log"
 	"math"
 	"os"
@@ -26,8 +26,31 @@ func main() {
 	resized := resize(getImageGrid(img), multiplyer)
 	saveGrid("imgs/resized.jpeg", resized)
 
+	resizedColors := gridColors(resized)
+
 	_, _, _, colors := createColorFrequencyMap(resized)
 	fmt.Println(Quantize(colors))
+
+	quantizedColors := Quantize(resizedColors)
+	CC_Custom_Palette := color.Palette{}
+	for _, clr := range quantizedColors {
+		CC_Custom_Palette = append(CC_Custom_Palette, clr)
+	}
+
+	quantizedImg := image.NewPaletted(image.Rect(0, 0, 79, 79), CC_Custom_Palette)
+	draw.Draw(quantizedImg, quantizedImg.Rect, gridToDefault(resized), gridToDefault(resized).Bounds().Min, draw.Src)
+
+	file, err := os.Create("imgs/quantized.png")
+
+	if err != nil {
+		log.Println("Failed to create quantized.png: ", err)
+	}
+	defer file.Close()
+
+	err = png.Encode(file, quantizedImg)
+	if err != nil {
+		log.Println("Failed to encode quantized.png: ", err)
+	}
 }
 
 func loadAsNRGBA(filePath string) *image.NRGBA {
@@ -102,6 +125,29 @@ func saveGrid(filePath string, grid [][]color.Color) {
 	defer imgFile.Close()
 
 	jpeg.Encode(imgFile, img.SubImage(img.Rect), nil)
+}
+
+func gridToDefault(grid [][]color.Color) image.Image {
+	xlen, ylen := len(grid), len(grid[0])
+	rect := image.Rect(0, 0, xlen, ylen)
+	img := image.NewNRGBA(rect)
+	for x := 0; x < xlen; x++ {
+		for y := 0; y < ylen; y++ {
+			img.Set(x, y, grid[x][y])
+		}
+	}
+	return img
+}
+
+func gridColors(grid [][]color.Color) (colors []color.Color) {
+	xlen, ylen := int(float64(len(grid))), int(float64(len(grid[0])))
+	for x := 0; x < xlen; x++ {
+		for y := 0; y < ylen; y++ {
+			pixel := grid[x][y]
+			colors = append(colors, pixel)
+		}
+	}
+	return colors
 }
 
 func save(filePath string, img *image.NRGBA) {
