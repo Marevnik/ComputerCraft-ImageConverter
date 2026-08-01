@@ -20,7 +20,7 @@ type colorBucket struct {
 
 func main() {
 	image_filepath := "imgs/img.jpeg"
-	processImage(image_filepath, 79, "peripetia")
+	processImage(image_filepath, 79, 52, "peripetia")
 }
 
 func loadAsNRGBA(filePath string) *image.NRGBA {
@@ -62,16 +62,16 @@ func toNRGBA(src image.Image) *image.NRGBA {
 	return converted
 }
 
-func resize(grid [][]color.Color, scale float64) (resized [][]color.Color) {
-	xlen, ylen := int(float64(len(grid))*scale), int(float64(len(grid[0]))*scale)
+func resize(grid [][]color.Color, scaleX float64, scaleY float64) (resized [][]color.Color) {
+	xlen, ylen := int(float64(len(grid))*scaleX), int(float64(len(grid[0]))*scaleY)
 	resized = make([][]color.Color, xlen)
 	for i := 0; i < len(resized); i++ {
 		resized[i] = make([]color.Color, ylen)
 	}
 	for x := 0; x < xlen; x++ {
 		for y := 0; y < ylen; y++ {
-			xp := int(math.Floor(float64(x) / scale))
-			yp := int(math.Floor(float64(y) / scale))
+			xp := int(math.Floor(float64(x) / scaleX))
+			yp := int(math.Floor(float64(y) / scaleY))
 			resized[x][y] = grid[xp][yp]
 		}
 	}
@@ -405,11 +405,13 @@ func writePixelsToFile(filename string, img image.Image, colorPalette color.Pale
 	return nil
 }
 
-func processImage(filePath string, targetSquareScale int, outputFileName string) {
+func processImage(filePath string, targetXScale int, targetYScale int, outputFileName string) {
 	src := loadAsNRGBA(filePath)
-	var multiplyer float64 = float64(targetSquareScale) / float64(src.Bounds().Size().X)
+	var multiplyerX float64 = float64(targetXScale) / float64(src.Bounds().Size().X)
+	var multiplyerY float64 = float64(targetYScale) / float64(src.Bounds().Size().Y)
 
-	resized := resize(getImageGrid(src), multiplyer)
+	resized := resize(getImageGrid(src), multiplyerX, multiplyerY)
+	saveGrid("imgs/resize.jpeg", resized)
 	resizedImgColors := gridColors(resized)
 
 	quantized := Quantize(resizedImgColors)
@@ -418,7 +420,7 @@ func processImage(filePath string, targetSquareScale int, outputFileName string)
 		CC_Custom_Palette = append(CC_Custom_Palette, clr)
 	}
 
-	quantizedImg := image.NewPaletted(image.Rect(0, 0, 79, 79), CC_Custom_Palette)
+	quantizedImg := image.NewPaletted(image.Rect(0, 0, targetXScale, targetYScale), CC_Custom_Palette)
 	draw.Draw(quantizedImg, quantizedImg.Rect, gridToDefault(resized), gridToDefault(resized).Bounds().Min, draw.Src)
 
 	// saving result as image
