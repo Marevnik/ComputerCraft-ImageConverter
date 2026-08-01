@@ -10,7 +10,9 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
 )
 
 type colorBucket struct {
@@ -20,7 +22,8 @@ type colorBucket struct {
 
 func main() {
 	image_filepath := "imgs/img.jpeg"
-	processImage(image_filepath, 79, 52, "peripetia")
+	processImage(image_filepath, 79, 52, "imgs/Converted/peripetia")
+	processFrames("imgs/frames", 79, 52, "test")
 }
 
 func loadAsNRGBA(filePath string) *image.NRGBA {
@@ -78,6 +81,23 @@ func resize(grid [][]color.Color, scaleX float64, scaleY float64) (resized [][]c
 	return
 }
 
+func mergeImages(imgs []image.Image, filePath string) {
+	var finalImg [][]color.Color
+	for i := 0; i < len(imgs); i++ {
+		grid := getImageGrid(toNRGBA(imgs[i]))
+		if i == 0 {
+			finalImg = grid
+			continue
+		}
+
+		for y := 0; y < len(grid); y++ {
+			finalImg[y] = append(finalImg[y], grid[y]...)
+		}
+	}
+
+	saveGrid(filePath, finalImg)
+}
+
 func saveGrid(filePath string, grid [][]color.Color) {
 	xlen, ylen := len(grid), len(grid[0])
 	rect := image.Rect(0, 0, xlen, ylen)
@@ -94,7 +114,7 @@ func saveGrid(filePath string, grid [][]color.Color) {
 	}
 	defer imgFile.Close()
 
-	jpeg.Encode(imgFile, img.SubImage(img.Rect), nil)
+	png.Encode(imgFile, img.SubImage(img.Rect))
 }
 
 func gridToDefault(grid [][]color.Color) image.Image {
@@ -405,13 +425,12 @@ func writePixelsToFile(filename string, img image.Image, colorPalette color.Pale
 	return nil
 }
 
-func processImage(filePath string, targetXScale int, targetYScale int, outputFileName string) {
+func processImage(filePath string, targetXScale int, targetYScale int, outputFilePath string) {
 	src := loadAsNRGBA(filePath)
 	var multiplyerX float64 = float64(targetXScale) / float64(src.Bounds().Size().X)
 	var multiplyerY float64 = float64(targetYScale) / float64(src.Bounds().Size().Y)
 
 	resized := resize(getImageGrid(src), multiplyerX, multiplyerY)
-	saveGrid("imgs/resize.jpeg", resized)
 	resizedImgColors := gridColors(resized)
 
 	quantized := Quantize(resizedImgColors)
@@ -424,7 +443,7 @@ func processImage(filePath string, targetXScale int, targetYScale int, outputFil
 	draw.Draw(quantizedImg, quantizedImg.Rect, gridToDefault(resized), gridToDefault(resized).Bounds().Min, draw.Src)
 
 	// saving result as image
-	fileName := "imgs/Converted/" + outputFileName + ".png"
+	fileName := outputFilePath + ".png"
 	file, err := os.Create(fileName)
 
 	if err != nil {
@@ -438,6 +457,39 @@ func processImage(filePath string, targetXScale int, targetYScale int, outputFil
 	}
 
 	// saving result for CC
-	writePaletteToHexFile("imgs/Converted/palette.txt", CC_Custom_Palette)
-	writePixelsToFile("imgs/Converted/pixels.txt", quantizedImg, CC_Custom_Palette)
+	writePaletteToHexFile(outputFilePath+"palette.txt", CC_Custom_Palette)
+	writePixelsToFile(outputFilePath+"pixels.txt", quantizedImg, CC_Custom_Palette)
+}
+
+func processFrames(dir string, targetXScale int, targetYScale int, outputFilesName string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		log.Println(err)
+	}
+
+	tmpDir, err := os.MkdirTemp("imgs/", "temp*")
+	if err != nil {
+		log.Println("Couldn't create temp dir: ", err)
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+
+	for i, e := range entries {
+		inputFilePath := filepath.Join(dir, e.Name())
+		outputFilePath := filepath.Join(tmpDir, outputFilesName+strconv.Itoa(i))
+		processImage(inputFilePath, targetXScale, targetYScale, outputFilePath)
+	}
+
+	var imgsToMerge []image.Image
+
+	for i := 0; i < len(entries); i++ {
+		filepath := filepath.Join(tmpDir, outputFilesName+strconv.Itoa(i)+".png")
+		img := loadAsNRGBA(filepath)
+		imgsToMerge = append(imgsToMerge, img)
+	}
+
+	mergedImgsFP := filepath.Join(tmpDir, "merged.png")
+	mergeImages(imgsToMerge, mergedImgsFP)
+	mergedImg := loadAsNRGBA(mergedImgsFP)
+	processImage(mergedImgsFP, mergedImg.Rect.Max.X, mergedImg.Rect.Max.Y, "imgs/Converted/Frames/"+outputFilesName)
 }
