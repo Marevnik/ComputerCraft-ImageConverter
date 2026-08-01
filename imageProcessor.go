@@ -419,6 +419,7 @@ func writePixelsToFile(filename string, img image.Image, colorPalette color.Pale
 	return nil
 }
 
+// Processes Image creating quantized image and saving it as image and 2 text files for computer craft
 func ProcessImage(filePath string, targetXScale int, targetYScale int, outputFilePath string) {
 	src := loadAsNRGBA(filePath)
 	var multiplyerX float64 = float64(targetXScale) / float64(src.Bounds().Size().X)
@@ -455,7 +456,8 @@ func ProcessImage(filePath string, targetXScale int, targetYScale int, outputFil
 	writePixelsToFile(outputFilePath+"pixels.txt", quantizedImg, CC_Custom_Palette)
 }
 
-func ProcessFrames(dir string, targetXScale int, targetYScale int, outputFilesName string) {
+// Processes all images in directory treating them as frames of animation, saves image sequence and 2 text files for computer craft
+func ProcessFrames(dir string, targetXScale int, targetYScale int, outputFilesName string, outputFilesPath string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		log.Println(err)
@@ -485,5 +487,5 @@ func ProcessFrames(dir string, targetXScale int, targetYScale int, outputFilesNa
 	mergedImgsFP := filepath.Join(tmpDir, "merged.png")
 	mergeImages(imgsToMerge, mergedImgsFP)
 	mergedImg := loadAsNRGBA(mergedImgsFP)
-	ProcessImage(mergedImgsFP, mergedImg.Rect.Max.X, mergedImg.Rect.Max.Y, "imgs/Converted/Frames/"+outputFilesName)
+	ProcessImage(mergedImgsFP, mergedImg.Rect.Max.X, mergedImg.Rect.Max.Y, outputFilesPath+outputFilesName)
 }

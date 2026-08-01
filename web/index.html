@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f7f4">
+    <title>CC Image Converter</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="/" aria-label="CC Image Converter — home">
+            <span class="brand-mark" aria-hidden="true">CC</span>
+            <span>
+                <strong>Image Converter</strong>
+                <small>ComputerCraft monitor utility</small>
+            </span>
+        </a>
+        <span class="endpoint"><i aria-hidden="true"></i> CCIC online</span>
+    </header>
+
+    <main class="workspace">
+        <section class="poster-hero" aria-labelledby="poster-title">
+            <div class="poster-meta">
+                <span>web utility<br><b>CC:Tweaked</b></span>
+                <span class="poster-rule" aria-hidden="true"></span>
+                <span>image conversion<br><b>monitor content</b></span>
+                <strong>©2026</strong>
+            </div>
+            <h1 id="poster-title">CC Image Lab</h1>
+            <div class="poster-index" aria-hidden="true">
+                <span><b>01 / upload</b><small>PNG · JPEG · GIF</small></span>
+                <span><b>02 / edit</b><small>crop and convert</small></span>
+                <span><b>03 / display</b><small>select from gallery</small></span>
+                <strong>pixel<br>typography.</strong>
+            </div>
+        </section>
+
+        <nav class="tabs" role="tablist" aria-label="Application sections">
+            <button class="tab-button is-active" id="uploadTab" type="button" role="tab" aria-selected="true" aria-controls="uploadPanel" data-tab="uploadPanel">
+                Upload
+            </button>
+            <button class="tab-button" id="galleryTab" type="button" role="tab" aria-selected="false" aria-controls="galleryPanel" data-tab="galleryPanel" tabindex="-1">
+                Gallery <span class="tab-count" id="galleryCount" hidden>0</span>
+            </button>
+        </nav>
+
+        <section class="editor-panel tab-panel is-active" id="uploadPanel" role="tabpanel" aria-labelledby="uploadTab">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Editor</p>
+                    <h1 id="editor-title">Crop your image</h1>
+                </div>
+                <div class="heading-actions">
+                    <button class="text-button" id="resetButton" type="button" hidden>Reset crop</button>
+                    <button class="text-button" id="replaceButton" type="button" hidden>Replace</button>
+                </div>
+            </div>
+
+            <div class="preview-shell" id="dropZone">
+                <div class="empty-state" id="emptyState">
+                    <div class="upload-glyph" aria-hidden="true"><span>+</span></div>
+                    <h2>Drop an image here</h2>
+                    <p>PNG, JPEG, or GIF. Static images can be cropped before uploading.</p>
+                    <button class="secondary-button" id="chooseButton" type="button">Choose file</button>
+                </div>
+
+                <div class="crop-stage" id="cropStage" hidden>
+                    <canvas id="cropCanvas" aria-label="Image to crop"></canvas>
+                    <div class="crop-selection" id="cropSelection" aria-label="Selected crop area">
+                        <span class="crop-grid" aria-hidden="true"></span>
+                        <span class="crop-size" id="cropSize" aria-hidden="true"></span>
+                        <i class="crop-handle crop-handle--nw" data-direction="nw"></i>
+                        <i class="crop-handle crop-handle--n" data-direction="n"></i>
+                        <i class="crop-handle crop-handle--ne" data-direction="ne"></i>
+                        <i class="crop-handle crop-handle--e" data-direction="e"></i>
+                        <i class="crop-handle crop-handle--se" data-direction="se"></i>
+                        <i class="crop-handle crop-handle--s" data-direction="s"></i>
+                        <i class="crop-handle crop-handle--sw" data-direction="sw"></i>
+                        <i class="crop-handle crop-handle--w" data-direction="w"></i>
+                    </div>
+                </div>
+
+                <div class="gif-stage" id="gifStage" hidden>
+                    <img id="gifPreview" alt="GIF animation preview">
+                    <span class="gif-badge">GIF · no crop</span>
+                </div>
+            </div>
+
+            <input id="fileInput" type="file" accept="image/png,image/jpeg,image/gif" hidden>
+
+            <p class="crop-help" id="cropHelp" hidden>Drag the crop area to move it, resize it using the edges and corners, or draw a new selection on the image.</p>
+
+            <div class="action-row">
+                <p class="status" id="status" role="status">Choose an image first</p>
+                <button class="send-button" id="sendButton" type="button" disabled>
+                    <span id="sendButtonText">Upload image</span>
+                    <span aria-hidden="true">↗</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="gallery-panel tab-panel" id="galleryPanel" role="tabpanel" aria-labelledby="galleryTab" hidden>
+            <div class="section-heading gallery-heading">
+                <div>
+                    <p class="eyebrow">Saved content</p>
+                    <h1>Image gallery</h1>
+                    <p class="gallery-copy">Choose the image to display on your ComputerCraft monitor.</p>
+                </div>
+                <button class="secondary-button refresh-button" id="refreshGalleryButton" type="button">Refresh</button>
+            </div>
+
+            <div class="gallery-state" id="galleryState" role="status">
+                <span class="gallery-loader" aria-hidden="true"></span>
+                <strong>Loading images</strong>
+                <small>Fetching available content</small>
+            </div>
+
+            <div class="gallery-grid" id="galleryGrid" aria-live="polite"></div>
+            <p class="gallery-status" id="galleryStatus" role="status"></p>
+        </section>
+    </main>
+
+    <footer>
+        <span>CC Image Converter</span>
+        <span>Free-form image cropping</span>
+    </footer>
+
+    <script src="/main.js" defer></script>
+</body>
+</html>
