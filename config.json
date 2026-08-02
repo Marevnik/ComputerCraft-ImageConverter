@@ -1,9 +1,9 @@
 {
   "server": {
-    "host": "127.0.0.1",
+    "host": "0.0.0.0",
     "port": 4243
   },
   "converter": {
-    "output_dir": "F:/Games/mmc-stable-win32/MultiMC/instances/CreateAERO 2.3/.minecraft/saves/New World/computercraft/computer/0/monitor/imgs/"
+    "output_dir": "F:/Games/mmc-stable-win32/MultiMC/instances/CreateAERO 2.3/.minecraft/saves/Create and CC/computercraft/computer/6/monitor/imgs/"
   }
 }
